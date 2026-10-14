@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Jira (demo)
+  version: 1.0.0
+  description: >-
+    Simplified Jira operations. The backend is httpbin's /anything endpoint,
+    so no real Jira instance is touched.
+servers:
+  - url: http://localhost:8080
+paths:
+  /anything/jira/issues:
+    get:
+      operationId: listIssues
+      summary: List Jira Issues
+      description: List issues in a Jira project
+      parameters:
+        - { name: project, in: query, required: false, schema: { type: string }, description: Project key }
+        - { name: status, in: query, required: false, schema: { type: string }, description: Filter by status }
+      responses: { "200": { description: OK } }
+    post:
+      operationId: createIssue
+      summary: Create Jira Issue
+      description: Create a new Jira issue
+      parameters:
+        - { name: project, in: query, required: true, schema: { type: string }, description: Project key }
+        - { name: summary, in: query, required: true, schema: { type: string }, description: Issue summary }
+        - { name: issue_type, in: query, required: false, schema: { type: string }, description: Issue type (Bug, Task, Story) }
+      responses: { "200": { description: OK } }
+  /anything/jira/issues/{issue_key}:
+    put:
+      operationId: updateIssue
+      summary: Update Jira Issue
+      description: Update fields on an existing Jira issue
+      parameters:
+        - { name: issue_key, in: path, required: true, schema: { type: string }, description: Issue key, e.g. PROJ-123 }
+        - { name: summary, in: query, required: false, schema: { type: string }, description: New summary }
+      responses: { "200": { description: OK } }
+    delete:
+      operationId: deleteIssue
+      summary: Delete Jira Issue
+      description: Delete a Jira issue
+      parameters:
+        - { name: issue_key, in: path, required: true, schema: { type: string }, description: Issue key, e.g. PROJ-123 }
+      responses: { "200": { description: OK } }
+  /anything/jira/search:
+    get:
+      operationId: searchIssues
+      summary: Search Jira Issues
+      description: Search Jira issues with a JQL query
+      parameters:
+        - { name: jql, in: query, required: true, schema: { type: string }, description: JQL query }
+      responses: { "200": { description: OK } }
+  /anything/jira/projects:
+    get:
+      operationId: listProjects
+      summary: List Jira Projects
+      description: List all Jira projects
+      responses: { "200": { description: OK } }

@@ -1,0 +1,113 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+#
+# MCP ACLs with agentgateway
+#
+#   openapi MCP target   -> REST API exposed as MCP tools
+#   jwtAuth              -> who is calling (alice and bob, from the `groups` claim)
+#   mcpAuthorization     -> which tools each group can see and call
+#                           (first rule: read tools for both groups, second: readwrite gets all)
+#
+# A tool that no rule allows is hidden from `tools/list` and rejected on `tools/call`.
+# Note: rules match the OpenAPI operationId (e.g. `listIssues`), while clients see the
+# target-prefixed name (`github_listIssues`) because of `prefixMode: always`.
+
+gateways:
+  default:
+    port: 3000
+
+routes:
+  # ---------------------------------------------------------------- GitHub
+  - name: github-mcp
+    matches:
+      - path:
+          pathPrefix: /mcp/github
+    policies:
+      cors:
+        allowOrigins: ["*"]
+        allowHeaders: ["*"]
+      # Authentication: every request needs a valid JWT
+      jwtAuth:
+        mode: strict
+        issuer: mcp-acls-demo
+        audiences: [agentgateway-mcp]
+        jwks:
+          file: ./keys/jwks.json
+      # Authorization: tool-level ACLs
+      mcpAuthorization:
+        rules:
+          # Read-only tools: readonly OR readwrite
+          - allow: |
+              (mcp.tool.name == "listIssues" ||
+               mcp.tool.name == "listPullRequests" ||
+               mcp.tool.name == "listBranches") &&
+              has(jwt.groups) &&
+              ("readonly" in jwt.groups || "readwrite" in jwt.groups)
+          # Default ACL: readwrite can call everything
+          - allow: |
+              has(jwt.groups) && "readwrite" in jwt.groups
+    backends:
+      - mcp:
+          statefulMode: stateless
+          prefixMode: always
+          targets:
+            - name: github
+              openapi:
+                schema:
+                  file: ./openapi/github.yaml
+                host: localhost:8080
+
+  # ------------------------------------------------------------------ Jira
+  - name: jira-mcp
+    matches:
+      - path:
+          pathPrefix: /mcp/jira
+    policies:
+      cors:
+        allowOrigins: ["*"]
+        allowHeaders: ["*"]
+      jwtAuth:
+        mode: strict
+        issuer: mcp-acls-demo
+        audiences: [agentgateway-mcp]
+        jwks:
+          file: ./keys/jwks.json
+      mcpAuthorization:
+        rules:
+          - allow: |
+              (mcp.tool.name == "listIssues" ||
+               mcp.tool.name == "searchIssues" ||
+               mcp.tool.name == "listProjects") &&
+              has(jwt.groups) &&
+              ("readonly" in jwt.groups || "readwrite" in jwt.groups)
+          - allow: |
+              has(jwt.groups) && "readwrite" in jwt.groups
+    backends:
+      - mcp:
+          statefulMode: stateless
+          prefixMode: always
+          targets:
+            - name: jira
+              openapi:
+                schema:
+                  file: ./openapi/jira.yaml
+                host: localhost:8080
+mcp:
+  gateways: default
+  targets:
+  - name: github
+    mcp:
+      host: http://localhost:3000/mcp/github
+  - name: jira
+    mcp:
+      host: http://localhost:3000/mcp/jira
+  policies:
+    cors:
+      allowOrigins:
+      - http://localhost:15000
+      allowHeaders:
+      - '*'
+      allowMethods:
+      - GET
+      - POST
+      exposeHeaders:
+      - Mcp-Session-Id

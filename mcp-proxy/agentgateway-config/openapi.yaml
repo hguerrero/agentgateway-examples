@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: Chuck Norris Jokes
+  version: 1.0.0
+  description: Have fun with this online database of Chuck Norris's facts.
+servers:
+  - url: https://api.chucknorris.io/jokes
+paths:
+  /random:
+    get:
+      operationId: getJoke
+      description: Retrieve a random Chuck Norris joke in JSON format.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: Retrieve a random joke from a given category.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: a joke
+  /categories:
+    get:
+      operationId: getCategoriesList
+      description: Retrieve the list of available joke categories.
+      responses:
+        "200":
+          description: the list of available joke categories
+  /search:
+    get:
+      operationId: getJokesWithString
+      description: Retrieve jokes that contain the given string.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: The string to look for in the text of the jokes.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: an array of jokes

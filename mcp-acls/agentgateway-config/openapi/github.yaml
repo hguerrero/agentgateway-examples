@@ -1,0 +1,91 @@
+openapi: 3.0.3
+info:
+  title: GitHub (demo)
+  version: 1.0.0
+  description: >-
+    Simplified GitHub operations. The backend is httpbin's /anything endpoint,
+    so no real GitHub account is touched.
+servers:
+  - url: http://localhost:8080
+paths:
+  /anything/issues:
+    get:
+      operationId: listIssues
+      summary: Retrieve GitHub Issues
+      description: Retrieve the GitHub issues for a repository
+      parameters:
+        - { name: repository, in: query, required: false, schema: { type: string }, description: Repository to retrieve issues from }
+      responses: { "200": { description: OK } }
+    post:
+      operationId: createIssue
+      summary: Create GitHub Issue
+      description: Create a new issue in a GitHub repository
+      parameters:
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository to create issue in }
+        - { name: title, in: query, required: true, schema: { type: string }, description: Title of the issue }
+        - { name: body, in: query, required: false, schema: { type: string }, description: Body content of the issue }
+      responses: { "200": { description: OK } }
+  /anything/issues/{issue_number}/close:
+    patch:
+      operationId: closeIssue
+      summary: Close GitHub Issue
+      description: Close an existing GitHub issue
+      parameters:
+        - { name: issue_number, in: path, required: true, schema: { type: integer }, description: Issue number to close }
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository containing the issue }
+      responses: { "200": { description: OK } }
+  /anything/pulls:
+    get:
+      operationId: listPullRequests
+      summary: List Pull Requests
+      description: List all pull requests for a repository
+      parameters:
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository to list pull requests from }
+        - { name: state, in: query, required: false, schema: { type: string, enum: [open, closed, all] }, description: State of pull requests to retrieve }
+      responses: { "200": { description: OK } }
+    post:
+      operationId: createPullRequest
+      summary: Create Pull Request
+      description: Create a new pull request
+      parameters:
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository to create pull request in }
+        - { name: title, in: query, required: true, schema: { type: string }, description: Title of the pull request }
+        - { name: head, in: query, required: true, schema: { type: string }, description: Branch to merge from }
+        - { name: base, in: query, required: true, schema: { type: string }, description: Branch to merge into }
+      responses: { "200": { description: OK } }
+  /anything/pulls/{pull_number}/merge:
+    put:
+      operationId: mergePullRequest
+      summary: Merge Pull Request
+      description: Merge an approved pull request
+      parameters:
+        - { name: pull_number, in: path, required: true, schema: { type: integer }, description: Pull request number to merge }
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository containing the pull request }
+        - { name: merge_method, in: query, required: false, schema: { type: string, enum: [merge, squash, rebase] }, description: Merge strategy }
+      responses: { "200": { description: OK } }
+  /anything/branches:
+    get:
+      operationId: listBranches
+      summary: List Repository Branches
+      description: List all branches in a repository
+      parameters:
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository to list branches from }
+      responses: { "200": { description: OK } }
+    post:
+      operationId: createBranch
+      summary: Create Branch
+      description: Create a new branch in a repository
+      parameters:
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository to create the branch in }
+        - { name: branch, in: query, required: true, schema: { type: string }, description: Name of the new branch }
+        - { name: from_branch, in: query, required: false, schema: { type: string }, description: Branch to create from }
+      responses: { "200": { description: OK } }
+  /anything/branches/{branch}:
+    delete:
+      operationId: deleteBranch
+      summary: Delete Branch
+      description: Delete a branch from a repository
+      parameters:
+        - { name: branch, in: path, required: true, schema: { type: string }, description: Branch to delete }
+        - { name: repository, in: query, required: true, schema: { type: string }, description: Repository containing the branch }
+      responses: { "200": { description: OK } }

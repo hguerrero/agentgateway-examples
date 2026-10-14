@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+#
+# MCP proxy with agentgateway
+#
+#   /api/chucknorris -> plain HTTP proxy to the REST API
+#   /mcp/chucknorris -> the same REST API, converted to MCP tools (OpenAPI target)
+#   /mcp/everything  -> an existing MCP server, proxied as is (MCP target)
+
+gateways:
+  default:
+    port: 3000
+
+routes:
+  # ------------------------------------------------ REST API, direct access
+  - name: chucknorris-api
+    matches:
+      - path:
+          pathPrefix: /api/chucknorris
+    policies:
+      urlRewrite:
+        authority:
+          host: api.chucknorris.io
+        path:
+          prefix: ""
+      backendTLS: {}
+    backends:
+      - host: api.chucknorris.io:443
+
+  # ------------------------------------- REST API converted to MCP tools
+  - name: chucknorris-mcp
+    matches:
+      - path:
+          pathPrefix: /mcp/chucknorris
+    policies:
+      cors:
+        allowOrigins: ["*"]
+        allowHeaders: ["*"]
+        allowMethods:
+        - GET
+        - POST
+        exposeHeaders:
+        - Mcp-Session-Id
+    backends:
+      - mcp:
+          statefulMode: stateless
+          targets:
+            - name: chucknorris
+              openapi:
+                schema:
+                  file: ./openapi.yaml
+                host: https://api.chucknorris.io
+
+  # ------------------------------------------- MCP server, passed through
+  - name: everything-mcp
+    matches:
+      - path:
+          pathPrefix: /mcp/everything
+    policies:
+      cors:
+        allowOrigins: ["*"]
+        allowHeaders: ["*"]
+        allowMethods:
+        - GET
+        - POST
+        exposeHeaders:
+        - Mcp-Session-Id        
+    backends:
+      - mcp:
+          targets:
+            - name: everything
+              mcp:
+                host: http://localhost:3001/mcp

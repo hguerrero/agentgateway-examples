@@ -1,0 +1,7 @@
+# Backend for the demo: httpbin echoes every request on /anything/*,
+# standing in for the real GitHub and Jira APIs.
+services:
+  httpbin:
+    image: mccutchen/go-httpbin:latest
+    ports:
+      - "8080:8080"
