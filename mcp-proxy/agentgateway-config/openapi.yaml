@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: Have fun with this online database of Chuck Norris's facts.
 servers:
-  - url: https://api.chucknorris.io/jokes
+  - url: http://localhost:3000/api/chucknorris/jokes
 paths:
   /random:
     get:

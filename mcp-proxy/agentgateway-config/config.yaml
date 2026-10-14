@@ -21,7 +21,7 @@ routes:
         authority:
           host: api.chucknorris.io
         path:
-          prefix: ""
+          prefix: /
       backendTLS: {}
     backends:
       - host: api.chucknorris.io:443
@@ -48,7 +48,7 @@ routes:
               openapi:
                 schema:
                   file: ./openapi.yaml
-                host: https://api.chucknorris.io
+                host: localhost:3000
 
   # ------------------------------------------- MCP server, passed through
   - name: everything-mcp
@@ -70,3 +70,7 @@ routes:
             - name: everything
               mcp:
                 host: http://localhost:3001/mcp
+mcp:
+  gateways: default
+llm:
+  gateways: default
