@@ -16,6 +16,30 @@ gateways:
     port: 3000
 
 routes:
+  # ------------------------------------- REST API converted to MCP tools
+  - name: chucknorris-mcp
+    matches:
+      - path:
+          pathPrefix: /mcp/chucknorris
+    policies:
+      cors:
+        allowOrigins: ["*"]
+        allowHeaders: ["*"]
+        allowMethods:
+        - GET
+        - POST
+        exposeHeaders:
+        - Mcp-Session-Id
+    backends:
+      - mcp:
+          statefulMode: stateless
+          targets:
+            - name: chucknorris
+              openapi:
+                schema:
+                  file: ./openapi/chuck.yaml
+                host: https://api.chucknorris.io:443
+
   # ---------------------------------------------------------------- GitHub
   - name: github-mcp
     matches:
