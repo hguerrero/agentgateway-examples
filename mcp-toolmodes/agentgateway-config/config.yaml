@@ -1,0 +1,156 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+#
+# MCP tool modes with Solo Enterprise agentgateway (standalone)
+#
+# GitHub's hosted MCP server (read-only, 28 tools) is served on four routes, one per tool mode.
+# Only `toolMode` differs between them:
+#
+#   /mcp/standard    toolMode: standard     every tool, with its full schema
+#   /mcp/search      toolMode: search       get_tool + invoke_tool
+#   /mcp/code        toolMode: code         run_code, with the JavaScript API for every tool in its description
+#   /mcp/codeSearch  toolMode: codeSearch   get_tool + run_code (run_code carries no API; get_tool supplies signatures)
+#
+# `toolMode` is an Enterprise feature. The open-source proxy ignores it and always runs in standard mode.
+# The license is read from ENTERPRISE_AGENTGATEWAY_LICENSE_KEY (scripts/run-gateway.sh sets it from
+# AGENTGATEWAY_LICENSE_KEY). To use a file instead, uncomment:
+#
+# config:
+#   license:
+#     key:
+#       file: ./license.key
+#
+# Where the mode lives: in the simplified config form (a top-level `mcp:` section) `toolMode` applies to the whole
+# listener. Here each route has its own MCP backend, and `toolMode` is a field of that backend, so one gateway
+# can serve all four presentations side by side. A change to `toolMode` applies from the next MCP session.
+#
+# `codeModeSettings` applies to `code` and `codeSearch` only.
+#
+# SAFETY: the upstream path is /mcp/readonly, GitHub's read-only surface (get_*, list_*, search_* only).
+# Do not use /mcp/all/readonly: it also lists write tools. Use a fine-grained, read-only token
+# scoped to the repository you ask about.
+#
+# If requests fail with "503 backends required DNS resolution which failed" or "No route to host", the
+# network may have a broken IPv6 path. Make the gateway use IPv4 only by adding this:
+#
+# config:
+#   dns:
+#     lookupFamily: V4Only
+#
+# The Anthropic route at /v1/messages lets the harness send its model calls through the gateway too.
+# The gateway holds both secrets: ANTHROPIC_API_KEY and GITHUB_PAT.
+config:
+  adminAddr: 0.0.0.0:15000
+
+gateways:
+  default:
+    port: 3000
+
+llm:
+  models:
+  - name: claude-*
+    provider: anthropic
+    params:
+      apiKey: $ANTHROPIC_API_KEY
+  policies:
+    cors:
+      allowOrigins:
+      - http://localhost:15000
+      allowHeaders:
+      - '*'
+      allowMethods:
+      - GET
+      - POST
+routes:
+  - name: github-standard
+    matches:
+      - path:
+          pathPrefix: /mcp/standard
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: standard
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
+
+  - name: github-search
+    matches:
+      - path:
+          pathPrefix: /mcp/search
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: search
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
+
+  - name: github-code
+    matches:
+      - path:
+          pathPrefix: /mcp/code
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: code
+          codeModeSettings:
+            timeout: 30s      # wall-clock limit for one run_code, including time spent waiting on upstream calls
+            cpuTimeout: 1s    # CPU-time limit, stops a script that spins without waiting
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
+
+  - name: github-codeSearch
+    matches:
+      - path:
+          pathPrefix: /mcp/codeSearch
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: codeSearch
+          codeModeSettings:
+            timeout: 30s      # wall-clock limit for one run_code, including time spent waiting on upstream calls
+            cpuTimeout: 1s    # CPU-time limit, stops a script that spins without waiting
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
+frontendPolicies:
+  accessLog:
+    database:
+      llm: full

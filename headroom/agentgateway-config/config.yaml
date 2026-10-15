@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=https://agentgateway.dev/schema/config
+#
+# Tool modes + Headroom with Solo Enterprise agentgateway (standalone)
+#
+# GitHub's hosted MCP server (read-only, 28 tools) is served on three routes. Only `toolMode` differs:
+#
+#   /mcp/standard  toolMode: standard   every tool, with its full schema, in the client's context
+#   /mcp/search    toolMode: search     get_tool + invoke_tool
+#   /mcp/code      toolMode: code       run_code
+#
+# `toolMode` is an Enterprise feature. The open-source proxy ignores it and always runs in standard mode.
+# The license is read from ENTERPRISE_AGENTGATEWAY_LICENSE_KEY (scripts/run-gateway.sh sets it from
+# AGENTGATEWAY_LICENSE_KEY).
+#
+# Headroom is not configured here. It is a separate local proxy that sits in front of the Anthropic route
+# below: the harness calls Headroom, and Headroom forwards to this gateway's /v1/messages
+# (see scripts/run-headroom.sh). The MCP routes are the same either way.
+#
+# SAFETY: the upstream path is /mcp/readonly, GitHub's read-only surface (get_*, list_*, search_* only).
+# Do not use /mcp/all/readonly: it also lists write tools. Use a fine-grained, read-only token
+# scoped to the repositories you ask about.
+#
+# The gateway holds both secrets: ANTHROPIC_API_KEY and GITHUB_PAT.
+
+# If requests fail with "503 backends required DNS resolution which failed" or "No route to host", the
+# network may have a broken IPv6 path. Make the gateway use IPv4 only by adding this:
+#
+# config:
+#   dns:
+#     lookupFamily: V4Only
+#
+gateways:
+  default:
+    port: 3000
+
+llm:
+  models:
+    - name: "claude-*"
+      provider: anthropic
+      params:
+        apiKey: "$ANTHROPIC_API_KEY"
+
+routes:
+  - name: github-standard
+    matches:
+      - path:
+          pathPrefix: /mcp/standard
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: standard
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
+
+  - name: github-search
+    matches:
+      - path:
+          pathPrefix: /mcp/search
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: search
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
+
+  - name: github-code
+    matches:
+      - path:
+          pathPrefix: /mcp/code
+    backends:
+      - mcp:
+          statefulMode: stateless
+          toolMode: code
+          codeModeSettings:
+            timeout: 30s
+            cpuTimeout: 1s
+          targets:
+            - name: github
+              mcp:
+                host: https://api.githubcopilot.com/mcp/readonly
+              policies:
+                backendAuth:
+                  key:
+                    value: "$GITHUB_PAT"
+                    location:
+                      header:
+                        name: Authorization
+                        prefix: "Bearer "
